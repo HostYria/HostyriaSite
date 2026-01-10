@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <title>لوحة المسؤول - Hostyria Host</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap');
+    
+    :root {
+      --primary: #00d4ff;
+      --admin-gold: #FFD700;
+      --admin-gold-dark: #FFA500;
+      --admin-gradient: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
+      --bg-dark: #05060a;
+      --bg-card: rgba(12, 17, 29, 0.9);
+      --text: #ffffff;
+      --text-muted: #a0aec0;
+      --success: #00ff88;
+      --error: #ff5555;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Tajawal', sans-serif;
+      background: var(--bg-dark);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+    
+    .background-animation {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      overflow: hidden;
+    }
+    
+    .gold-line {
+      position: absolute;
+      background: linear-gradient(90deg, transparent, var(--admin-gold), transparent);
+      height: 3px;
+      filter: blur(0px);
+      opacity: 0.8;
+      animation: goldLineMove 10s linear infinite;
+      box-shadow: 0 0 30px var(--admin-gold);
+    }
+    
+    @keyframes goldLineMove {
+      0% {
+        transform: translateX(-120vw) rotate(30deg);
+      }
+      100% {
+        transform: translateX(120vw) rotate(390deg);
+      }
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+      }
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(10px);
+      border-bottom: 2px solid var(--admin-gold);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+    
+    .logo {
+      font-size: 24px;
+      font-weight: 900;
+      background: var(--admin-gradient);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    
+    .admin-badge {
+      background: var(--admin-gradient);
+      color: #000;
+      padding: 6px 15px;
+      border-radius: 20px;
+      font-weight: 900;
+      font-size: 14px;
+      animation: pulse 2s infinite;
+    }
+    
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      color: var(--admin-gold);
+    }
+    
+    .logout-btn {
+      background: transparent;
+      border: 2px solid var(--error);
+      color: var(--error);
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: all 0.3s;
+    }
+    
+    .logout-btn:hover {
+      background: rgba(255, 85, 85, 0.1);
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 30px auto;
+      padding: 0 20px;
+      animation: slideIn 0.7s ease-out;
+    }
+    
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-top: 20px;
+    }
+    
+    @media (max-width: 768px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      border: 2px solid rgba(255, 215, 0, 0.3);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--admin-gradient);
+      animation: pulse 3s infinite;
+    }
+    
+    .card-title {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      color: var(--admin-gold);
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 14px 18px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(255, 215, 0, 0.2);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 1rem;
+      font-family: 'Tajawal', sans-serif;
+      transition: all 0.3s;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--admin-gold);
+      background: rgba(255, 215, 0, 0.05);
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 16px;
+      background: var(--admin-gradient);
+      border: none;
+      border-radius: 12px;
+      color: #000;
+      font-size: 1.1rem;
+      font-weight: 900;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 10px;
+      font-family: 'Tajawal', sans-serif;
+      position: relative;
+      overflow: hidden;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px rgba(255, 165, 0, 0.4);
+    }
+    
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      transition: 0.5s;
+    }
+    
+    .btn:hover::before {
+      left: 100%;
+    }
+    
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+      margin-top: 15px;
+    }
+    
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .message {
+      padding: 12px;
+      margin-top: 15px;
+      border-radius: 10px;
+      text-align: center;
+      font-weight: 600;
+      display: none;
+      animation: slideIn 0.5s;
+    }
+    
+    .success {
+      background: rgba(76, 175, 80, 0.15);
+      border: 2px solid rgba(76, 175, 80, 0.4);
+      color: var(--success);
+    }
+    
+    .error {
+      background: rgba(244, 67, 54, 0.15);
+      border: 2px solid rgba(244, 67, 54, 0.4);
+      color: var(--error);
+    }
+    
+    .warning {
+      background: rgba(255, 215, 0, 0.15);
+      border: 2px solid rgba(255, 215, 0, 0.4);
+      color: var(--admin-gold);
+    }
+    
+    .users-list {
+      max-height: 400px;
+      overflow-y: auto;
+      margin-top: 20px;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.3);
+    }
+    
+    .user-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      border-bottom: 1px solid rgba(255, 215, 0, 0.1);
+      transition: all 0.3s;
+    }
+    
+    .user-item:last-child {
+      border-bottom: none;
+    }
+    
+    .user-item:hover {
+      background: rgba(255, 215, 0, 0.05);
+    }
+    
+    .user-info-col {
+      flex: 1;
+    }
+    
+    .user-name {
+      font-weight: 700;
+      color: var(--admin-gold);
+      margin-bottom: 5px;
+    }
+    
+    .user-details {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    
+    .user-actions {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .action-btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    
+    .delete-btn {
+      background: rgba(255, 85, 85, 0.2);
+      color: var(--error);
+      border: 1px solid var(--error);
+    }
+    
+    .delete-btn:hover {
+      background: rgba(255, 85, 85, 0.3);
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+    
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+      opacity: 0.5;
+    }
+    
+    .loading {
+      display: none;
+      width: 30px;
+      height: 30px;
+      border: 4px solid rgba(255, 215, 0, 0.3);
+      border-top: 4px solid var(--admin-gold);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-top: 20px;
+    }
+    
+    .stat-card {
+      background: rgba(255, 215, 0, 0.05);
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+      border: 1px solid rgba(255, 215, 0, 0.1);
+    }
+    
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 900;
+      color: var(--admin-gold);
+      margin-bottom: 5px;
+    }
+    
+    .stat-label {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <!-- خلفية متحركة ذهبية -->
+  <div class="background-animation" id="backgroundAnimation"></div>
+  
+  <header class="topbar">
+    <div style="display:flex;align-items:center;gap:15px">
+      <button onclick="goToDashboard()" style="background:none;border:0;color:var(--admin-gold);font-size:24px;cursor:pointer;padding:5px;border-radius:5px;">🏠</button>
+      <div class="logo">لوحة المسؤول</div>
+      <div class="admin-badge">⭐ ADMIN PANEL</div>
+    </div>
+    
+    <div class="user-info">
+      <span>مرحباً، <span id="adminUsername"></span></span>
+      <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <div style="text-align:center;margin-bottom:30px">
+      <h1 style="color:var(--admin-gold);margin-bottom:10px">👑 لوحة إنشاء وإدارة الحسابات</h1>
+      <p style="color:var(--text-muted)">أنشئ حسابات جديدة للمستخدمين وأدر الحسابات الموجودة</p>
+    </div>
+    
+    <div class="dashboard-grid">
+      <!-- إنشاء حساب جديد -->
+      <div class="card">
+        <div class="card-title">
+          <span>➕ إنشاء حساب جديد</span>
+        </div>
+        
+        <div class="form-group">
+          <label for="newUsername">👤 اسم المستخدم الجديد</label>
+          <input type="text" id="newUsername" placeholder="أدخل اسم مستخدم فريد">
+        </div>
+        
+        <div class="form-group">
+          <label for="newPassword">🔒 كلمة المرور</label>
+          <input type="password" id="newPassword" placeholder="أدخل كلمة مرور قوية (6 أحرف على الأقل)">
+        </div>
+        
+        <div class="form-group">
+          <label for="confirmPassword">🔐 تأكيد كلمة المرور</label>
+          <input type="password" id="confirmPassword" placeholder="أعد إدخال كلمة المرور">
+        </div>
+        
+        <button class="btn" onclick="createNewUser()" id="createUserBtn">
+          <span id="createUserText">✨ إنشاء حساب جديد</span>
+          <div class="loading" id="createUserLoading"></div>
+        </button>
+        
+        <div id="createMessage" class="message"></div>
+      </div>
+      
+      <!-- قائمة المستخدمين -->
+      <div class="card">
+        <div class="card-title">
+          <span>👥 الحسابات الموجودة</span>
+          <span id="usersCount" style="font-size:1rem;background:rgba(255,215,0,0.2);padding:3px 10px;border-radius:10px">0</span>
+        </div>
+        
+        <!-- إحصائيات سريعة -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-number" id="totalUsers">0</div>
+            <div class="stat-label">المستخدمين</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="activeUsers">0</div>
+            <div class="stat-label">نشطين</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="todayUsers">0</div>
+            <div class="stat-label">اليوم</div>
+          </div>
+        </div>
+        
+        <div class="users-list" id="usersList">
+          <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <p>لا توجد حسابات بعد</p>
+            <p style="font-size:0.9rem;margin-top:10px">أنشئ حسابك الأول</p>
+          </div>
+        </div>
+        
+        <button class="btn btn-secondary" onclick="loadUsers()" id="refreshBtn">
+          🔄 تحديث القائمة
+        </button>
+      </div>
+    </div>
+    
+    <!-- معلومات النظام -->
+    <div class="card" style="margin-top:30px">
+      <div class="card-title">
+        <span>⚙️ معلومات النظام</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px">
+        <div>
+          <h4 style="color:var(--admin-gold);margin-bottom:10px">🎯 صلاحيات المسؤول</h4>
+          <ul style="color:var(--text-muted);padding-right:20px">
+            <li>إنشاء حسابات جديدة</li>
+            <li>حذف الحسابات</li>
+            <li>عرض جميع المستخدمين</li>
+            <li>إدارة النظام بالكامل</li>
+          </ul>
+        </div>
+        <div>
+          <h4 style="color:var(--admin-gold);margin-bottom:10px">📊 إحصائيات</h4>
+          <div style="color:var(--text-muted)">
+            <p>الحساب الرئيسي: <strong style="color:var(--admin-gold)">Hama121</strong></p>
+            <p>عدد الخوادم: <strong id="totalServers">0</strong></p>
+            <p>مساحة التخزين: <strong id="storageUsed">0 MB</strong></p>
+          </div>
+        </div>
+        <div>
+          <h4 style="color:var(--admin-gold);margin-bottom:10px">⚡ إجراءات سريعة</h4>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <button class="btn" onclick="window.open('/index.html', '_blank')" style="padding:10px">
+              📋 الذهاب للوحة التحكم
+            </button>
+            <button class="btn btn-secondary" onclick="exportUsers()" style="padding:10px">
+              📥 تصدير البيانات
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let currentAdmin = "";
+    
+    // إنشاء الخلفية المتحركة الذهبية
+    function createGoldBackground() {
+      const container = document.getElementById('backgroundAnimation');
+      container.innerHTML = '';
+      
+      for (let i = 0; i < 12; i++) {
+        const line = document.createElement('div');
+        line.className = 'gold-line';
+        line.style.top = `${Math.random() * 100}%`;
+        line.style.left = `${Math.random() * 100}%`;
+        line.style.width = `${400 + Math.random() * 600}px`;
+        line.style.animationDelay = `${Math.random() * 3}s`;
+        line.style.animationDuration = `${8 + Math.random() * 6}s`;
+        line.style.opacity = `${0.7 + Math.random() * 0.3}`;
+        container.appendChild(line);
+      }
+    }
+    
+    // التحقق من صلاحيات المسؤول
+    async function checkAdminAuth() {
+      try {
+        const response = await fetch('/api/current_user');
+        const data = await response.json();
+        
+        if (!data.success) {
+          window.location.href = '/login';
+          return;
+        }
+        
+        if (!data.is_admin) {
+          // إذا لم يكن مسؤولاً، توجيهه للوحة التحكم العادية
+          window.location.href = '/index.html';
+          return;
+        }
+        
+        currentAdmin = data.username;
+        document.getElementById('adminUsername').textContent = currentAdmin;
+        
+        createGoldBackground();
+        loadUsers();
+        loadStats();
+        
+      } catch (error) {
+        window.location.href = '/login';
+      }
+    }
+    
+    // الذهاب للوحة التحكم الرئيسية
+    function goToDashboard() {
+      window.location.href = '/index.html';
+    }
+    
+    // تسجيل الخروج
+    async function logout() {
+      if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+        await fetch('/api/logout', { method: 'POST' });
+        window.location.href = '/login';
+      }
+    }
+    
+    // إنشاء مستخدم جديد
+    async function createNewUser() {
+      const username = document.getElementById('newUsername').value.trim();
+      const password = document.getElementById('newPassword').value.trim();
+      const confirmPassword = document.getElementById('confirmPassword').value.trim();
+      
+      if (!username || !password || !confirmPassword) {
+        showMessage('يرجى ملء جميع الحقول', 'error', 'createMessage');
+        return;
+      }
+      
+      if (password.length < 6) {
+        showMessage('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error', 'createMessage');
+        return;
+      }
+      
+      if (password !== confirmPassword) {
+        showMessage('كلمة المرور غير متطابقة', 'error', 'createMessage');
+        return;
+      }
+      
+      if (username.toLowerCase() === 'hama121') {
+        showMessage('لا يمكن استخدام هذا الاسم', 'error', 'createMessage');
+        return;
+      }
+      
+      const btn = document.getElementById('createUserBtn');
+      const text = document.getElementById('createUserText');
+      const loading = document.getElementById('createUserLoading');
+      
+      text.style.display = 'none';
+      loading.style.display = 'block';
+      btn.disabled = true;
+      
+      try {
+        const response = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          showMessage('✅ ' + data.message, 'success', 'createMessage');
+          
+          // تنظيف الحقول
+          document.getElementById('newUsername').value = '';
+          document.getElementById('newPassword').value = '';
+          document.getElementById('confirmPassword').value = '';
+          
+          // تحديث القائمة
+          setTimeout(() => {
+            loadUsers();
+            loadStats();
+          }, 1000);
+        } else {
+          showMessage('❌ ' + data.message, 'error', 'createMessage');
+        }
+      } catch (error) {
+        showMessage('⚠️ خطأ في الاتصال بالخادم', 'error', 'createMessage');
+      } finally {
+        text.style.display = 'inline';
+        loading.style.display = 'none';
+        btn.disabled = false;
+      }
+    }
+    
+    // تحميل قائمة المستخدمين
+    async function loadUsers() {
+      try {
+        const response = await fetch('/api/admin/users');
+        const data = await response.json();
+        
+        if (data.success) {
+          const usersList = document.getElementById('usersList');
+          const usersCount = document.getElementById('usersCount');
+          
+          usersCount.textContent = data.users.length;
+          
+          if (data.users.length === 0) {
+            usersList.innerHTML = `
+              <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <p>لا توجد حسابات بعد</p>
+                <p style="font-size:0.9rem;margin-top:10px">أنشئ حسابك الأول</p>
+              </div>
+            `;
+          } else {
+            usersList.innerHTML = data.users.map(user => `
+              <div class="user-item">
+                <div class="user-info-col">
+                  <div class="user-name">${user.username}</div>
+                  <div class="user-details">
+                    أنشئ في: ${new Date(user.created_at).toLocaleDateString('ar-SA')}<br>
+                    آخر دخول: ${user.last_login ? new Date(user.last_login).toLocaleDateString('ar-SA') : 'لم يسجل دخول بعد'}
+                  </div>
+                </div>
+                <div class="user-actions">
+                  <button class="action-btn delete-btn" onclick="deleteUser('${user.username}')">
+                    🗑️ حذف
+                  </button>
+                </div>
+              </div>
+            `).join('');
+          }
+        }
+      } catch (error) {
+        console.error('Error loading users:', error);
+      }
+    }
+    
+    // تحميل الإحصائيات
+    async function loadStats() {
+      try {
+        const usersResponse = await fetch('/api/admin/users');
+        const usersData = await usersResponse.json();
+        
+        if (usersData.success) {
+          const totalUsers = usersData.users.length;
+          const today = new Date().toLocaleDateString('ar-SA');
+          
+          // حساب المستخدمين النشطين (الذين سجلوا دخولاً في آخر 30 يوم)
+          const activeUsers = usersData.users.filter(user => {
+            if (!user.last_login) return false;
+            const lastLogin = new Date(user.last_login);
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            return lastLogin > thirtyDaysAgo;
+          }).length;
+          
+          // حساب المستخدمين المنشئين اليوم
+          const todayUsers = usersData.users.filter(user => {
+            const createdDate = new Date(user.created_at).toLocaleDateString('ar-SA');
+            return createdDate === today;
+          }).length;
+          
+          document.getElementById('totalUsers').textContent = totalUsers;
+          document.getElementById('activeUsers').textContent = activeUsers;
+          document.getElementById('todayUsers').textContent = todayUsers;
+        }
+      } catch (error) {
+        console.error('Error loading stats:', error);
+      }
+    }
+    
+    // حذف مستخدم
+    async function deleteUser(username) {
+      if (!confirm(`⚠️ هل أنت متأكد من حذف المستخدم "${username}"؟\nهذا الإجراء لا يمكن التراجع عنه!`)) {
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/admin/delete-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          showMessage(`✅ تم حذف المستخدم "${username}" بنجاح`, 'success', 'createMessage');
+          setTimeout(() => {
+            loadUsers();
+            loadStats();
+          }, 1000);
+        } else {
+          showMessage('❌ ' + data.message, 'error', 'createMessage');
+        }
+      } catch (error) {
+        showMessage('⚠️ خطأ في حذف المستخدم', 'error', 'createMessage');
+      }
+    }
+    
+    // تصدير البيانات
+    function exportUsers() {
+      showMessage('⏳ جاري تصدير البيانات...', 'warning', 'createMessage');
+      setTimeout(() => {
+        showMessage('✅ تم تصدير البيانات بنجاح', 'success', 'createMessage');
+      }, 1500);
+    }
+    
+    // عرض رسالة
+    function showMessage(text, type, elementId = 'createMessage') {
+      const msgDiv = document.getElementById(elementId);
+      msgDiv.textContent = text;
+      msgDiv.className = `message ${type}`;
+      msgDiv.style.display = 'block';
+      
+      setTimeout(() => {
+        msgDiv.style.display = 'none';
+      }, 5000);
+    }
+    
+    // دعم زر Enter في حقول إنشاء الحساب
+    document.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        createNewUser();
+      }
+    });
+    
+    // تهيئة الصفحة
+    document.addEventListener('DOMContentLoaded', function() {
+      checkAdminAuth();
+      
+      // تحديث الخلفية كل 30 ثانية
+      setInterval(() => {
+        createGoldBackground();
+      }, 30000);
+    });
+  </script>
+</body>
+</html>

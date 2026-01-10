@@ -1,0 +1,7 @@
+{
+  "display_name": "Igud",
+  "startup_file": "main.py",
+  "env": {
+    "TELEGRAM_BOT_TOKEN": "8417602764:AAGeX2ZdHgtYTyifYjRWNmxp3YOG0J4-lbA"
+  }
+}
