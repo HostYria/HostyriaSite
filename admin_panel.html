@@ -543,13 +543,98 @@
             <button class="btn btn-secondary" onclick="exportUsers()" style="padding:10px">
               📥 تصدير البيانات
             </button>
+            <button class="btn" onclick="showUserFilesModal()" style="padding:10px; background: var(--admin-gradient); margin-top: 10px;">
+              📁 ملفات المستخدمين
+            </button>
           </div>
         </div>
       </div>
     </div>
   </main>
 
+  <!-- Modal for User Files -->
+  <div id="userFilesModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; overflow-y:auto; padding:20px;">
+    <div class="card" style="max-width:800px; margin:50px auto; min-height:400px;">
+      <div class="card-title">
+        <span>📁 ملفات المستخدمين</span>
+        <button onclick="hideUserFilesModal()" style="background:none; border:none; color:var(--error); font-size:24px; cursor:pointer;">&times;</button>
+      </div>
+      <div class="form-group">
+        <label for="userSelect">اختر المستخدم:</label>
+        <select id="userSelect" onchange="loadUserFiles()" style="width:100%; padding:10px; background:rgba(255,255,255,0.1); color:white; border:1px solid var(--admin-gold); border-radius:5px;">
+          <option value="">-- اختر مستخدم --</option>
+        </select>
+      </div>
+      <div id="filesContainer" class="users-list">
+        <div class="empty-state">اختر مستخدماً لعرض ملفاته</div>
+      </div>
+    </div>
+  </div>
+
   <script>
+    // --- User Files Management ---
+    function showUserFilesModal() {
+      document.getElementById('userFilesModal').style.display = 'block';
+      fetchUserListForFiles();
+    }
+    
+    function hideUserFilesModal() {
+      document.getElementById('userFilesModal').style.display = 'none';
+    }
+    
+    async function fetchUserListForFiles() {
+      try {
+        const response = await fetch('/api/admin/users');
+        const data = await response.json();
+        if (data.success) {
+          const select = document.getElementById('userSelect');
+          select.innerHTML = '<option value="">-- اختر مستخدم --</option>';
+          data.users.forEach(user => {
+            const opt = document.createElement('option');
+            opt.value = user.username;
+            opt.textContent = user.username;
+            select.appendChild(opt);
+          });
+        }
+      } catch(e) { console.error(e); }
+    }
+    
+    async function loadUserFiles() {
+      const username = document.getElementById('userSelect').value;
+      const container = document.getElementById('filesContainer');
+      if (!username) {
+        container.innerHTML = '<div class="empty-state">اختر مستخدماً لعرض ملفاته</div>';
+        return;
+      }
+      
+      container.innerHTML = '<div class="loading" style="display:block"></div>';
+      try {
+        const response = await fetch(`/api/admin/user-files/${username}`);
+        const data = await response.json();
+        if (data.success) {
+          if (data.files.length === 0) {
+            container.innerHTML = '<div class="empty-state">لا توجد ملفات لهذا المستخدم</div>';
+          } else {
+            container.innerHTML = data.files.map(f => `
+              <div class="user-item">
+                <div class="user-info-col">
+                  <div class="user-name">${f.name}</div>
+                  <div class="user-details">${f.size} | ${f.path}</div>
+                </div>
+                <div class="user-actions">
+                  <a href="/api/admin/download-file?path=${encodeURIComponent(f.full_path)}" class="action-btn" style="background:var(--success); color:#000; text-decoration:none;">⬇️ تحميل</a>
+                </div>
+              </div>
+            `).join('');
+          }
+        } else {
+          container.innerHTML = `<div class="empty-state" style="color:var(--error)">${data.message}</div>`;
+        }
+      } catch(e) { 
+        container.innerHTML = '<div class="empty-state" style="color:var(--error)">خطأ في تحميل الملفات</div>';
+      }
+    }
+
     let currentAdmin = "";
     
     // إنشاء الخلفية المتحركة الذهبية

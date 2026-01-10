@@ -867,6 +867,42 @@ def delete_user():
     
     return jsonify({"success": True, "message": "تم حذف المستخدم بنجاح"})
 
+@app.route("/api/admin/user-files/<username>")
+def admin_get_user_files(username):
+    if 'username' not in session or not is_admin(session['username']):
+        return jsonify({"success": False, "message": "غير مصرح"}), 403
+    
+    user_dir = os.path.join(USERS_DIR, username)
+    if not os.path.exists(user_dir):
+        return jsonify({"success": False, "message": "مجلد المستخدم غير موجود"})
+    
+    files_list = []
+    for root, dirs, files in os.walk(user_dir):
+        for file in files:
+            full_path = os.path.join(root, file)
+            rel_path = os.path.relpath(full_path, user_dir)
+            files_list.append({
+                "name": file,
+                "path": rel_path,
+                "full_path": full_path,
+                "size": f"{os.path.getsize(full_path) / 1024:.1f} KB"
+            })
+    return jsonify({"success": True, "files": files_list})
+
+@app.route("/api/admin/download-file")
+def admin_download_file():
+    if 'username' not in session or not is_admin(session['username']):
+        return jsonify({"success": False, "message": "غير مصرح"}), 403
+    
+    file_path = request.args.get("path")
+    if not file_path or not file_path.startswith(USERS_DIR):
+        return "Invalid path", 400
+    
+    if not os.path.exists(file_path):
+        return "File not found", 404
+        
+    return send_from_directory(os.path.dirname(file_path), os.path.basename(file_path), as_attachment=True)
+
 if __name__ == "__main__":
     init_users_db()
     app.run(host="0.0.0.0", port=5000)
