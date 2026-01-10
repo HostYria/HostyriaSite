@@ -580,17 +580,6 @@ def list_files(folder):
             "name": f.filename,
             "size": f"{len(f.content) / 1024:.1f} KB"
         })
-        
-    # Still add operational files from FS if they exist
-    user_servers_dir = ensure_user_servers_dir()
-    p = os.path.join(user_servers_dir, folder)
-    if os.path.exists(p):
-        for f in os.listdir(p):
-            if f in ["meta.json", "server.log"]:
-                f_path = os.path.join(p, f)
-                if os.path.isfile(f_path):
-                    results.append({"name": f, "size": f"{os.path.getsize(f_path) / 1024:.1f} KB"})
-                    
     return jsonify(results)
 
 @app.route("/files/content/<folder>/<filename>")
