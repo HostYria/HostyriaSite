@@ -524,7 +524,17 @@ def server_action(folder, act):
         return jsonify({"success": False, "message": "No main file set."})
     
     if not os.path.exists(os.path.join(user_servers_dir, folder, startup)):
-        return jsonify({"success": False, "message": "الملف غير موجود"})
+        # Try to get it from DB if it doesn't exist on FS
+        user_file = UserFile.query.filter_by(
+            username=session['username'],
+            server_folder=folder,
+            filename=startup
+        ).first()
+        if user_file:
+            with open(os.path.join(user_servers_dir, folder, startup), "wb") as f:
+                f.write(user_file.content)
+        else:
+            return jsonify({"success": False, "message": "الملف غير موجود"})
     
     # تجهيز متغيرات البيئة
     meta_path = ensure_meta(folder)
