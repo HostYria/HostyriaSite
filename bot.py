@@ -731,21 +731,27 @@ def extract_zip(folder, filename):
     if 'username' not in session:
         return jsonify({"success": False, "message": "غير مصرح"}), 401
     
-    user_servers_dir = ensure_user_servers_dir()
-    zip_path = os.path.join(user_servers_dir, folder, filename)
-    extract_to = os.path.join(user_servers_dir, folder)
+    # Try to get the zip file from DB
+    user_file = UserFile.query.filter_by(
+        username=session['username'],
+        server_folder=folder,
+        filename=filename
+    ).first()
     
-    if not zip_path.startswith(user_servers_dir):
-        return jsonify({"success": False, "message": "مسار غير صالح"}), 403
-    
-    if not os.path.exists(zip_path) or not filename.lower().endswith('.zip'):
+    if not user_file or not filename.lower().endswith('.zip'):
         return jsonify({"success": False, "message": "الملف غير موجود أو ليس Zip"}), 400
     
     try:
         import zipfile
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_to)
-        return jsonify({"success": True, "message": "تم استخراج الملف بنجاح"})
+        import io
+        with zipfile.ZipFile(io.BytesIO(user_file.content), 'r') as zip_ref:
+            for zip_info in zip_ref.infolist():
+                if zip_info.is_dir():
+                    continue
+                # Extract file content and save to DB
+                extracted_content = zip_ref.read(zip_info.filename)
+                save_file_to_db_and_fs(session['username'], folder, zip_info.filename, extracted_content)
+        return jsonify({"success": True, "message": "تم استخراج الملف بنجاح إلى قاعدة البيانات"})
     except Exception as e:
         return jsonify({"success": False, "message": f"فشل الاستخراج: {str(e)}"})
 
@@ -959,21 +965,35 @@ def admin_get_user_files(username):
     if 'username' not in session or not is_admin(session['username']):
         return jsonify({"success": False, "message": "غير مصرح"}), 403
     
-    user_dir = os.path.join(USERS_DIR, username)
-    if not os.path.exists(user_dir):
-        return jsonify({"success": False, "message": "مجلد المستخدم غير موجود"})
+    # Get all files for this user from DB
+    db_files = UserFile.query.filter_by(username=username).all()
     
     files_list = []
-    for root, dirs, files in os.walk(user_dir):
-        for file in files:
-            full_path = os.path.join(root, file)
-            rel_path = os.path.relpath(full_path, user_dir)
-            files_list.append({
-                "name": file,
-                "path": rel_path,
-                "full_path": full_path,
-                "size": f"{os.path.getsize(full_path) / 1024:.1f} KB"
-            })
+    for f in db_files:
+        files_list.append({
+            "name": f.filename,
+            "path": f.filename,
+            "full_path": f"DB:{f.filename}",
+            "size": f"{len(f.content) / 1024:.1f} KB",
+            "server": f.server_folder
+        })
+        
+    # Also check FS for operational files (meta.json, server.log)
+    user_dir = os.path.join(USERS_DIR, username)
+    if os.path.exists(user_dir):
+        for root, dirs, files in os.walk(user_dir):
+            for file in files:
+                if file in ["meta.json", "server.log"]:
+                    full_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(full_path, user_dir)
+                    files_list.append({
+                        "name": file,
+                        "path": rel_path,
+                        "full_path": full_path,
+                        "size": f"{os.path.getsize(full_path) / 1024:.1f} KB",
+                        "server": os.path.basename(os.path.dirname(full_path))
+                    })
+                    
     return jsonify({"success": True, "files": files_list})
 
 @app.route("/api/admin/download-file")
