@@ -72,6 +72,8 @@ app = Flask(__name__, static_folder=BASE_DIR)
 app.secret_key = secrets.token_hex(32)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+if not app.config["SQLALCHEMY_DATABASE_URI"]:
+    raise ValueError("DATABASE_URL environment variable is not set!")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
