@@ -779,6 +779,7 @@ def install_req(folder):
     if 'username' not in session:
         return jsonify({"success": False}), 401
     
+    user_servers_dir = ensure_user_servers_dir()
     # التحقق من وجود الملف في مجلد السيرفر أو في قاعدة البيانات
     req_path = os.path.join(user_servers_dir, folder, "requirements.txt")
     
