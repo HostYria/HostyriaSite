@@ -45,7 +45,7 @@ def sync_files_to_db(username, server_folder):
     db.session.commit()
 
 def save_file_to_db_and_fs(username, server_folder, filename, content_bytes):
-    """Save file exclusively to DB"""
+    """Save file exclusively to DB and extract it to FS for immediate use"""
     # Save to DB
     existing = UserFile.query.filter_by(
         username=username, 
@@ -63,6 +63,13 @@ def save_file_to_db_and_fs(username, server_folder, filename, content_bytes):
         )
         db.session.add(new_file)
     db.session.commit()
+
+    # Extract to FS to ensure the server can access it
+    user_servers_dir = get_user_servers_dir(username)
+    target_path = os.path.join(user_servers_dir, server_folder, filename)
+    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+    with open(target_path, "wb") as f:
+        f.write(content_bytes)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USERS_DIR = os.path.join(BASE_DIR, "USERS")
