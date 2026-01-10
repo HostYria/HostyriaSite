@@ -1,7 +1,7 @@
 modules = ["python-3.11", "postgresql-16"]
 [nix]
 channel = "stable-25_05"
-packages = ["unzip"]
+packages = ["openssl", "postgresql", "unzip"]
 
 [agent]
 expertMode = true
@@ -17,30 +17,15 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Run Python"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Run Bot"
+args = "Start application"
 
 [[workflows.workflow]]
-name = "Run Python"
+name = "Start application"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python main.py"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow]]
-name = "Run Bot"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python bot.py"
+args = "gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app"
 waitForPort = 5000
 
 [workflows.workflow.metadata]
@@ -49,3 +34,7 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]

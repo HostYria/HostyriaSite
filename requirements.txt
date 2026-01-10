@@ -17,3 +17,15 @@ flask
 flask-sqlalchemy
 psutil
 gunicorn
+email_validator
+flask
+flask-sqlalchemy
+gunicorn
+psycopg2-binary
+email_validator
+flask
+flask-sqlalchemy
+gunicorn
+psutil
+psycopg2-binary
+sqlalchemy

@@ -1,6 +1,5 @@
-def main():
-    print("Hello from repl-nix-workspace!")
-
+from bot import app, init_users_db
 
 if __name__ == "__main__":
-    main()
+    init_users_db()
+    app.run(host='0.0.0.0', port=5000)

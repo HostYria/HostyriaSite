@@ -70,7 +70,7 @@ os.makedirs(USERS_DIR, exist_ok=True)
 
 app = Flask(__name__, static_folder=BASE_DIR)
 application = app
-app.secret_key = secrets.token_hex(32)
+app.secret_key = os.environ.get("SESSION_SECRET")
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 if not app.config["SQLALCHEMY_DATABASE_URI"]:
