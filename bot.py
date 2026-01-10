@@ -494,10 +494,14 @@ def server_action(folder, act):
         
         def pipe_to_file(p, path):
             try:
+                # Use "a" mode to ensure we don't overwrite if multiple threads/processes start
+                # or just stay with "w" but make sure it's handled carefully.
+                # Actually, the user wants to see the output immediately.
                 with open(path, "w", encoding="utf-8", buffering=1) as f:
                     for line in p.stdout:
                         f.write(line)
                         f.flush()
+                        os.fsync(f.fileno()) # Force write to disk
             except Exception as e:
                 print(f"Logging error: {e}")
         

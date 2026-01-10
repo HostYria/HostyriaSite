@@ -1261,7 +1261,7 @@
       };
       
       fn(); 
-      poll = setInterval(fn, 2000);
+      poll = setInterval(fn, 1000); // Polling every 1 second instead of 2
     }
 
     async function srvAction(act) {
@@ -1278,6 +1278,16 @@
           window.location.href = '/login';
           return;
         }
+        // Immediately trigger polling update after action
+        setTimeout(() => {
+            if (poll) {
+                // Manually trigger the fetch once
+                fetch(`/server/stats/${currentSrv.folder}`).then(res => res.json()).then(d => {
+                    document.getElementById('logOut').textContent = d.logs || "Starting...";
+                    document.getElementById('statusTxt').textContent = d.status;
+                });
+            }
+        }, 500);
       } catch (error) {
         console.error('Action error:', error);
       } finally {
