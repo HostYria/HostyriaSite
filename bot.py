@@ -45,13 +45,7 @@ def sync_files_to_db(username, server_folder):
     db.session.commit()
 
 def save_file_to_db_and_fs(username, server_folder, filename, content_bytes):
-    """Save file both to DB and Filesystem"""
-    # Save to FS
-    user_servers_dir = get_user_servers_dir(username)
-    file_path = os.path.join(user_servers_dir, server_folder, filename)
-    with open(file_path, 'wb') as f:
-        f.write(content_bytes)
-    
+    """Save file exclusively to DB"""
     # Save to DB
     existing = UserFile.query.filter_by(
         username=username, 
@@ -582,23 +576,50 @@ def list_files(folder):
     if 'username' not in session:
         return jsonify([]), 401
     
+    # Get user files from DB
+    files = UserFile.query.filter_by(
+        username=session['username'],
+        server_folder=folder
+    ).all()
+    
+    results = []
+    for f in files:
+        results.append({
+            "name": f.filename,
+            "size": f"{len(f.content) / 1024:.1f} KB"
+        })
+        
+    # Still add operational files from FS if they exist
     user_servers_dir = ensure_user_servers_dir()
     p = os.path.join(user_servers_dir, folder)
-    files = []
     if os.path.exists(p):
         for f in os.listdir(p):
-            if f in ["meta.json", "server.log"]: 
-                continue
-            f_path = os.path.join(p, f)
-            if os.path.isfile(f_path):
-                files.append({"name": f, "size": f"{os.path.getsize(f_path) / 1024:.1f} KB"})
-    return jsonify(files)
+            if f in ["meta.json", "server.log"]:
+                f_path = os.path.join(p, f)
+                if os.path.isfile(f_path):
+                    results.append({"name": f, "size": f"{os.path.getsize(f_path) / 1024:.1f} KB"})
+                    
+    return jsonify(results)
 
 @app.route("/files/content/<folder>/<filename>")
 def get_file_content(folder, filename):
     if 'username' not in session:
         return jsonify({"content": ""}), 401
     
+    # Try DB first
+    user_file = UserFile.query.filter_by(
+        username=session['username'],
+        server_folder=folder,
+        filename=filename
+    ).first()
+    
+    if user_file:
+        try:
+            return jsonify({"content": user_file.content.decode('utf-8')})
+        except:
+            return jsonify({"content": "[Binary Content]"})
+            
+    # Fallback to FS for operational files
     user_servers_dir = ensure_user_servers_dir()
     file_path = os.path.join(user_servers_dir, folder, filename)
     
@@ -606,10 +627,12 @@ def get_file_content(folder, filename):
         return jsonify({"content": ""}), 403
     
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return jsonify({"content": f.read()})
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return jsonify({"content": f.read()})
     except: 
-        return jsonify({"content": ""})
+        pass
+    return jsonify({"content": ""})
 
 @app.route("/files/save/<folder>/<filename>", methods=["POST"])
 def save_file_content(folder, filename):
@@ -673,16 +696,27 @@ def rename_file(folder):
     if 'username' not in session:
         return jsonify({"success": False}), 401
     
-    user_servers_dir = ensure_user_servers_dir()
     data = request.get_json()
+    old_name = data['old']
+    new_name = data['new']
     
-    old_path = os.path.join(user_servers_dir, folder, data['old'])
-    new_path = os.path.join(user_servers_dir, folder, data['new'])
-    
-    if not old_path.startswith(user_servers_dir) or not new_path.startswith(user_servers_dir):
-        return jsonify({"success": False}), 403
-    
-    os.rename(old_path, new_path)
+    # Rename in DB
+    user_file = UserFile.query.filter_by(
+        username=session['username'],
+        server_folder=folder,
+        filename=old_name
+    ).first()
+    if user_file:
+        user_file.filename = new_name
+        
+    # Rename in FS (for operational files)
+    user_servers_dir = ensure_user_servers_dir()
+    old_path = os.path.join(user_servers_dir, folder, old_name)
+    new_path = os.path.join(user_servers_dir, folder, new_name)
+    if os.path.exists(old_path) and old_path.startswith(user_servers_dir):
+        os.rename(old_path, new_path)
+        
+    db.session.commit()
     return jsonify({"success": True})
 
 @app.route("/files/delete/<folder>", methods=["POST"])
@@ -690,14 +724,23 @@ def delete_file(folder):
     if 'username' not in session:
         return jsonify({"success": False}), 401
     
-    user_servers_dir = ensure_user_servers_dir()
     data = request.get_json()
-    file_path = os.path.join(user_servers_dir, folder, data['name'])
+    filename = data['name']
     
-    if not file_path.startswith(user_servers_dir):
-        return jsonify({"success": False}), 403
+    # Delete from DB
+    UserFile.query.filter_by(
+        username=session['username'],
+        server_folder=folder,
+        filename=filename
+    ).delete()
     
-    os.remove(file_path)
+    # Delete from FS (for operational files)
+    user_servers_dir = ensure_user_servers_dir()
+    file_path = os.path.join(user_servers_dir, folder, filename)
+    if os.path.exists(file_path) and file_path.startswith(user_servers_dir):
+        os.remove(file_path)
+        
+    db.session.commit()
     return jsonify({"success": True})
 
 @app.route("/files/extract/<folder>/<filename>", methods=["POST"])
