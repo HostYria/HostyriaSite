@@ -24,3 +24,13 @@ class RememberToken(db.Model):
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     expires_at: Mapped[datetime] = mapped_column(nullable=False)
     last_used: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+class UserFile(db.Model):
+    __tablename__ = 'user_files'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(nullable=False)
+    server_folder: Mapped[str] = mapped_column(nullable=False)
+    filename: Mapped[str] = mapped_column(nullable=False)
+    content: Mapped[bytes] = mapped_column(db.LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)

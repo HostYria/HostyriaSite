@@ -11,7 +11,64 @@ import time
 import threading
 from datetime import datetime, timedelta
 from flask import Flask, send_from_directory, request, jsonify, session, redirect, url_for, make_response
-from models import db, User, RememberToken
+from models import db, User, RememberToken, UserFile
+
+def sync_files_to_db(username, server_folder):
+    """Sync filesystem files to database for a specific server"""
+    user_servers_dir = get_user_servers_dir(username)
+    server_path = os.path.join(user_servers_dir, server_folder)
+    if not os.path.exists(server_path):
+        return
+        
+    for filename in os.listdir(server_path):
+        if filename in ["meta.json", "server.log"]:
+            continue
+        file_path = os.path.join(server_path, filename)
+        if os.path.isfile(file_path):
+            with open(file_path, 'rb') as f:
+                content = f.read()
+                existing = UserFile.query.filter_by(
+                    username=username, 
+                    server_folder=server_folder, 
+                    filename=filename
+                ).first()
+                if existing:
+                    existing.content = content
+                else:
+                    new_file = UserFile(
+                        username=username,
+                        server_folder=server_folder,
+                        filename=filename,
+                        content=content
+                    )
+                    db.session.add(new_file)
+    db.session.commit()
+
+def save_file_to_db_and_fs(username, server_folder, filename, content_bytes):
+    """Save file both to DB and Filesystem"""
+    # Save to FS
+    user_servers_dir = get_user_servers_dir(username)
+    file_path = os.path.join(user_servers_dir, server_folder, filename)
+    with open(file_path, 'wb') as f:
+        f.write(content_bytes)
+    
+    # Save to DB
+    existing = UserFile.query.filter_by(
+        username=username, 
+        server_folder=server_folder, 
+        filename=filename
+    ).first()
+    if existing:
+        existing.content = content_bytes
+    else:
+        new_file = UserFile(
+            username=username,
+            server_folder=server_folder,
+            filename=filename,
+            content=content_bytes
+        )
+        db.session.add(new_file)
+    db.session.commit()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USERS_DIR = os.path.join(BASE_DIR, "USERS")
