@@ -71,11 +71,14 @@ def save_file_to_db_and_fs(username, server_folder, filename, content_bytes):
     with open(target_path, "wb") as f:
         f.write(content_bytes)
 
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USERS_DIR = os.path.join(BASE_DIR, "USERS")
 os.makedirs(USERS_DIR, exist_ok=True)
 
 app = Flask(__name__, static_folder=BASE_DIR)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 application = app
 app.secret_key = os.environ.get("SESSION_SECRET")
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
