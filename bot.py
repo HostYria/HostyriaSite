@@ -160,17 +160,9 @@ def register_user(username, password, created_by_admin=False):
     db.session.add(new_user)
     db.session.commit()
     
-    # Create dynamic user table in DB
-    try:
-        table_name = f"user_data_{username}"
-        db.session.execute(db.text(f'CREATE TABLE IF NOT EXISTS "{table_name}" (id SERIAL PRIMARY KEY, key TEXT UNIQUE NOT NULL, value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'))
-        db.session.commit()
-    except Exception as e:
-        print(f"Error creating user table: {e}")
-        db.session.rollback()
-    
     user_dir = os.path.join(USERS_DIR, username)
     os.makedirs(user_dir, exist_ok=True)
+    os.makedirs(os.path.join(user_dir, "SERVERS"), exist_ok=True)
     
     return True, "تم إنشاء الحساب بنجاح"
 
@@ -957,14 +949,11 @@ def delete_user():
     db.session.delete(user)
     db.session.commit()
     
-    # Drop dynamic user table
-    try:
-        table_name = f"user_data_{username_to_delete}"
-        db.session.execute(db.text(f'DROP TABLE IF EXISTS "{table_name}"'))
-        db.session.commit()
-    except Exception as e:
-        print(f"Error dropping user table: {e}")
-        db.session.rollback()
+    # Delete from DB
+    UserFile.query.filter_by(
+        username=username_to_delete
+    ).delete()
+    db.session.commit()
     
     # حذف مجلد المستخدم إذا كان موجوداً
     user_dir = os.path.join(USERS_DIR, username_to_delete)
