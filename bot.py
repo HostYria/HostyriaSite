@@ -762,11 +762,23 @@ def install_req(folder):
     if 'username' not in session:
         return jsonify({"success": False}), 401
     
-    user_servers_dir = ensure_user_servers_dir()
+    # التحقق من وجود الملف في مجلد السيرفر أو في قاعدة البيانات
     req_path = os.path.join(user_servers_dir, folder, "requirements.txt")
     
+    # إذا لم يكن موجوداً في النظام، نحاول جلبه من قاعدة البيانات
     if not os.path.exists(req_path):
-        return jsonify({"success": False, "message": "ملف requirements.txt غير موجود"})
+        user_file = UserFile.query.filter_by(
+            username=session['username'],
+            server_folder=folder,
+            filename="requirements.txt"
+        ).first()
+        
+        if user_file:
+            # كتابة الملف من قاعدة البيانات إلى النظام ليتمكن pip من قراءته
+            with open(req_path, "wb") as f:
+                f.write(user_file.content)
+        else:
+            return jsonify({"success": False, "message": "ملف requirements.txt غير موجود في المجلد أو قاعدة البيانات"})
     
     log_path = os.path.join(user_servers_dir, folder, "server.log")
     
