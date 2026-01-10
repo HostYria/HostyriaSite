@@ -13,3 +13,6 @@ flask-sqlalchemy
 psutil
 psycopg2-binary
 sqlalchemy
+flask
+flask-sqlalchemy
+psutil

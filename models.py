@@ -12,7 +12,7 @@ class User(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(unique=True, nullable=False)
     password: Mapped[str] = mapped_column(nullable=False)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.now)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     last_login: Mapped[datetime] = mapped_column(nullable=True)
     theme: Mapped[str] = mapped_column(default="blue")
     is_admin: Mapped[bool] = mapped_column(default=False)
@@ -21,6 +21,6 @@ class RememberToken(db.Model):
     __tablename__ = 'remember_tokens'
     token: Mapped[str] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(nullable=False)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.now)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     expires_at: Mapped[datetime] = mapped_column(nullable=False)
-    last_used: Mapped[datetime] = mapped_column(default=datetime.now)
+    last_used: Mapped[datetime] = mapped_column(default=datetime.utcnow)
