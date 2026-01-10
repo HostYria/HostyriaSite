@@ -607,15 +607,9 @@ def save_file_content(folder, filename):
     if 'username' not in session:
         return jsonify({"success": False}), 401
     
-    user_servers_dir = ensure_user_servers_dir()
-    file_path = os.path.join(user_servers_dir, folder, filename)
-    
-    if not file_path.startswith(user_servers_dir):
-        return jsonify({"success": False}), 403
-    
     data = request.json
-    with open(file_path, 'w', encoding='utf-8') as f:
-        f.write(data.get('content', ''))
+    content = data.get('content', '')
+    save_file_to_db_and_fs(session['username'], folder, filename, content.encode('utf-8'))
     return jsonify({"success": True})
 
 @app.route("/files/upload/<folder>", methods=["POST"])
@@ -623,20 +617,17 @@ def upload_file(folder):
     if 'username' not in session:
         return jsonify({"success": False}), 401
     
-    user_servers_dir = ensure_user_servers_dir()
-    
-    # رفع ملفات متعددة تلقائياً
     uploaded_files = request.files.getlist('files[]')
     results = []
     
     for f in uploaded_files:
         if f and f.filename:
             safe_name = sanitize_filename(f.filename)
-            save_path = os.path.join(user_servers_dir, folder, safe_name)
-            f.save(save_path)
+            content = f.read()
+            save_file_to_db_and_fs(session['username'], folder, safe_name, content)
             results.append({
                 "name": safe_name,
-                "size": f"{os.path.getsize(save_path) / 1024:.2f} KB"
+                "size": f"{len(content) / 1024:.2f} KB"
             })
     
     return jsonify({
@@ -647,31 +638,25 @@ def upload_file(folder):
 
 @app.route("/files/upload-single/<folder>", methods=["POST"])
 def upload_single_file(folder):
-    """رفع ملف واحد تلقائياً عند الاختيار"""
     if 'username' not in session:
         return jsonify({"success": False}), 401
-    
-    user_servers_dir = ensure_user_servers_dir()
     
     if 'file' not in request.files:
         return jsonify({"success": False, "message": "لم يتم اختيار ملف"})
     
     f = request.files['file']
-    
     if f and f.filename:
         safe_name = sanitize_filename(f.filename)
-        save_path = os.path.join(user_servers_dir, folder, safe_name)
-        f.save(save_path)
-        
+        content = f.read()
+        save_file_to_db_and_fs(session['username'], folder, safe_name, content)
         return jsonify({
             "success": True,
             "message": "تم رفع الملف بنجاح",
             "file": {
                 "name": safe_name,
-                "size": f"{os.path.getsize(save_path) / 1024:.2f} KB"
+                "size": f"{len(content) / 1024:.2f} KB"
             }
         })
-    
     return jsonify({"success": False, "message": "فشل رفع الملف"})
 
 @app.route("/files/rename/<folder>", methods=["POST"])
