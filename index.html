@@ -1306,6 +1306,7 @@
           return;
         }
         const files = await r.json();
+        console.log('Total files received:', files.length);
         
         const fileList = document.getElementById('serverFileList');
         fileList.innerHTML = files.map(f => {

@@ -568,11 +568,11 @@ def list_files(folder):
     if 'username' not in session:
         return jsonify([]), 401
     
-    # Get user files from DB
+    # Get all user files from DB without limit
     files = UserFile.query.filter_by(
         username=session['username'],
         server_folder=folder
-    ).all()
+    ).order_by(UserFile.filename).all()
     
     results = []
     for f in files:
