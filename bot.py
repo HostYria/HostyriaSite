@@ -231,27 +231,45 @@ def ensure_meta(folder):
     return meta_path
 
 def get_ip():
-    # Detect Render environment
-    render_host = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
-    if render_host:
-        return f"https://{render_host}"
+    # Force primary domain as requested
+    return "https://hostyriasite.onrender.com"
 
-    # Use Replit domain if available
-    repl_slug = os.environ.get("REPL_SLUG")
-    repl_owner = os.environ.get("REPL_OWNER")
-    if repl_slug and repl_owner:
-        return f"https://{repl_slug}.{repl_owner}.repl.co"
+@app.route("/server/delete/<folder>", methods=["POST"])
+def delete_server(folder):
+    if 'username' not in session:
+        return jsonify({"success": False, "message": "غير مصرح"}), 401
     
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(('10.255.255.255', 1))
-        ip = s.getsockname()[0]
-        s.close()
-        return f"http://{ip}"
-    except: 
-        return 'http://127.0.0.1'
+    username = session['username']
+    
+    # 1. Kill process if running
+    proc_key = f"{username}_{folder}"
+    if proc_key in running_procs:
+        try:
+            p = psutil.Process(running_procs[proc_key].pid)
+            for child in p.children(recursive=True):
+                child.kill()
+            p.kill()
+        except:
+            pass
+        del running_procs[proc_key]
+    
+    # 2. Delete from Database
+    UserFile.query.filter_by(username=username, server_folder=folder).delete()
+    db.session.commit()
+    
+    # 3. Delete from Filesystem
+    user_servers_dir = get_user_servers_dir(username)
+    target = os.path.join(user_servers_dir, folder)
+    if os.path.exists(target):
+        import shutil
+        try:
+            shutil.rmtree(target)
+        except Exception as e:
+            return jsonify({"success": False, "message": f"Error deleting files: {str(e)}"})
+            
+    return jsonify({"success": True, "servers": load_servers_list()})
 
-def load_servers_list(username=None):
+@app.route("/server/rename/<folder>", methods=["POST"])
     current_user = username or session.get('username')
     if not current_user:
         return []
@@ -1005,31 +1023,6 @@ def set_startup(folder):
     m["startup_file"] = request.get_json().get('file', '')
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(m, f)
-    return jsonify({"success": True})
-
-@app.route("/server/delete/<folder>", methods=["POST"])
-def delete_server(folder):
-    if 'username' not in session:
-        return jsonify({"success": False}), 401
-    
-    user_servers_dir = ensure_user_servers_dir()
-    target = os.path.join(user_servers_dir, folder)
-    
-    if not target.startswith(user_servers_dir) or not os.path.exists(target):
-        return jsonify({"success": False, "message": "Not found"}), 404
-        
-    # إيقاف السيرفر إذا كان يعمل
-    proc_key = f"{session['username']}_{folder}"
-    if proc_key in running_procs:
-        try:
-            p = psutil.Process(running_procs[proc_key].pid)
-            for child in p.children(recursive=True): child.kill()
-            p.kill()
-        except: pass
-        del running_procs[proc_key]
-        
-    import shutil
-    shutil.rmtree(target)
     return jsonify({"success": True})
 
 @app.route("/server/rename/<folder>", methods=["POST"])
