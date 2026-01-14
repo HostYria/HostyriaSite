@@ -234,22 +234,22 @@ def get_ip():
     # Detect Render environment
     render_host = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
     if render_host:
-        return render_host
+        return f"https://{render_host}"
 
     # Use Replit domain if available
     repl_slug = os.environ.get("REPL_SLUG")
     repl_owner = os.environ.get("REPL_OWNER")
     if repl_slug and repl_owner:
-        return f"{repl_slug}.{repl_owner}.repl.co"
+        return f"https://{repl_slug}.{repl_owner}.repl.co"
     
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(('10.255.255.255', 1))
         ip = s.getsockname()[0]
         s.close()
-        return ip
+        return f"http://{ip}"
     except: 
-        return '127.0.0.1'
+        return 'http://127.0.0.1'
 
 def load_servers_list():
     if 'username' not in session:
@@ -568,30 +568,39 @@ def server_action(folder, act):
     
     # استخدام PIPE وموضوع (Thread) لنقل المخرجات للملف مع Flush فوري
     try:
-        proc = subprocess.Popen(
-            [sys.executable, "-u", startup], 
-            cwd=os.path.join(user_servers_dir, folder), 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.STDOUT,
-            env=env_vars,
-            universal_newlines=True,
-            bufsize=1
-        )
+        # Check if the startup file is an HTML file or a script
+        if startup.endswith(".html"):
+            # If it's HTML, we can't "run" it with python, 
+            # but we can log that it's being served.
+            with open(log_path, "w", encoding="utf-8") as f:
+                f.write(f"Serving HTML file: {startup}\n")
+                f.write(f"Server is 'Running' and accessible via web interface.\n")
+            
+            # Create a dummy process that sleeps to represent the "running" state
+            proc = subprocess.Popen(["sleep", "infinity"])
+        else:
+            proc = subprocess.Popen(
+                [sys.executable, "-u", startup], 
+                cwd=os.path.join(user_servers_dir, folder), 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.STDOUT,
+                env=env_vars,
+                universal_newlines=True,
+                bufsize=1
+            )
+            
+            def pipe_to_file(p, path):
+                try:
+                    with open(path, "w", encoding="utf-8", buffering=1) as f:
+                        for line in p.stdout:
+                            f.write(line)
+                            f.flush()
+                            os.fsync(f.fileno()) # Force write to disk
+                except Exception as e:
+                    print(f"Logging error: {e}")
+            
+            threading.Thread(target=pipe_to_file, args=(proc, log_path), daemon=True).start()
         
-        def pipe_to_file(p, path):
-            try:
-                # Use "a" mode to ensure we don't overwrite if multiple threads/processes start
-                # or just stay with "w" but make sure it's handled carefully.
-                # Actually, the user wants to see the output immediately.
-                with open(path, "w", encoding="utf-8", buffering=1) as f:
-                    for line in p.stdout:
-                        f.write(line)
-                        f.flush()
-                        os.fsync(f.fileno()) # Force write to disk
-            except Exception as e:
-                print(f"Logging error: {e}")
-        
-        threading.Thread(target=pipe_to_file, args=(proc, log_path), daemon=True).start()
         running_procs[proc_key] = proc
         return jsonify({"success": True})
     except Exception as e:
