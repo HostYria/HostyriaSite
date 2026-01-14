@@ -351,12 +351,17 @@ def auto_start_all_servers():
                     with open(f_path, "wb") as f_out:
                         f_out.write(f.content)
                 
+                # Construct distinct server URL
+                base_url = get_ip()
+                server_url = f"{base_url}/USERS/{user.username}/SERVERS/{folder}/"
+                
                 meta_path = os.path.join(user_servers_dir, folder, "meta.json")
                 with open(meta_path, "r") as f:
                     meta = json.load(f)
                 
                 env_vars = os.environ.copy()
                 env_vars.update(meta.get("env", {}))
+                env_vars["SERVER_URL"] = server_url
                 env_vars["PYTHONUNBUFFERED"] = "1"
                 
                 try:
@@ -672,6 +677,10 @@ def server_action(folder, act):
         else:
             return jsonify({"success": False, "message": "الملف غير موجود"})
     
+    # Construct distinct server URL based on the folder/server context
+    base_url = get_ip()
+    server_url = f"{base_url}/USERS/{session['username']}/SERVERS/{folder}/"
+    
     # Sync all files for this server to FS before starting
     files = UserFile.query.filter_by(
         username=session['username'],
@@ -684,9 +693,10 @@ def server_action(folder, act):
             with open(f_path, "wb") as f_out:
                 f_out.write(f.content)
     
-    # تجهيز متغيرات البيئة
+    # Pass server_url to environment variables for bots to use
     env_vars = os.environ.copy()
     env_vars.update(meta.get("env", {}))
+    env_vars["SERVER_URL"] = server_url
     env_vars["PYTHONUNBUFFERED"] = "1"
     
     try:
