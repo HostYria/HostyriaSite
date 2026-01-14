@@ -855,9 +855,12 @@
 
         <div class="stat-card">
           <div style="font-size:20px;">🌐</div>
-          <div>
+          <div style="flex:1; min-width:0;">
             <small style="color:var(--muted)">IP ADDRESS</small><br>
-            <b id="ipTxt">127.0.0.1</b>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <b id="ipTxt" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;">127.0.0.1</b>
+              <button onclick="copyIP()" style="background:rgba(255,255,255,0.1); border:1px solid var(--accent); color:var(--accent); border-radius:4px; padding:2px 6px; cursor:pointer; font-size:10px; transition:0.3s; flex-shrink:0;">COPY</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1005,6 +1008,17 @@
         
         await fetch('/api/logout', { method: 'POST' });
         window.location.href = '/login';
+      }
+    }
+
+    function copyIP() {
+      const ip = document.getElementById('ipTxt').textContent;
+      if (ip && ip !== 'Offline') {
+        navigator.clipboard.writeText(ip).then(() => {
+          showNotification('تم نسخ الرابط بنجاح', 'success');
+        }).catch(err => {
+          showNotification('فشل النسخ', 'error');
+        });
       }
     }
 
