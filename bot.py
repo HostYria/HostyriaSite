@@ -501,12 +501,16 @@ def get_stats(folder):
         except Exception as e:
             logs = f"Error reading logs: {str(e)}"
     
+    # Construct distinct server URL based on the folder/server context
+    base_url = get_ip()
+    server_url = f"{base_url}/USERS/{session['username']}/SERVERS/{folder}/"
+    
     return jsonify({
         "status": "Running" if running else "Offline", 
         "cpu": cpu, 
         "mem": mem, 
         "logs": logs, 
-        "ip": get_ip()
+        "ip": server_url
     })
 
 @app.route("/server/action/<folder>/<act>", methods=["POST"])
@@ -516,19 +520,26 @@ def server_action(folder, act):
     
     proc_key = f"{session['username']}_{folder}"
     
+    if act == "stop":
+        if proc_key in running_procs:
+            try:
+                p = psutil.Process(running_procs[proc_key].pid)
+                for child in p.children(recursive=True): 
+                    child.kill()
+                p.kill()
+            except: 
+                pass
+            del running_procs[proc_key]
+        return jsonify({"success": True})
+
+    # Start logic
     if proc_key in running_procs:
         try:
             p = psutil.Process(running_procs[proc_key].pid)
-            for child in p.children(recursive=True): 
-                child.kill()
-            p.kill()
-        except: 
+            if p.is_running() and p.status() != psutil.STATUS_ZOMBIE:
+                return jsonify({"success": False, "message": "Server is already running"})
+        except:
             pass
-        if act == "stop": 
-            del running_procs[proc_key]
-    
-    if act == "stop": 
-        return jsonify({"success": True})
 
     user_servers_dir = ensure_user_servers_dir()
     log_path = os.path.join(user_servers_dir, folder, "server.log")
@@ -539,12 +550,14 @@ def server_action(folder, act):
         return jsonify({"success": False, "message": "مجلد غير موجود"})
     
     with open(meta_path, "r") as f:
-        startup = json.load(f).get("startup_file")
+        meta = json.load(f)
+        startup = meta.get("startup_file")
     
     if not startup: 
         return jsonify({"success": False, "message": "No main file set."})
     
-    if not os.path.exists(os.path.join(user_servers_dir, folder, startup)):
+    target_startup_path = os.path.join(user_servers_dir, folder, startup)
+    if not os.path.exists(target_startup_path):
         # Try to get it from DB if it doesn't exist on FS
         user_file = UserFile.query.filter_by(
             username=session['username'],
@@ -552,31 +565,35 @@ def server_action(folder, act):
             filename=startup
         ).first()
         if user_file:
-            with open(os.path.join(user_servers_dir, folder, startup), "wb") as f:
+            os.makedirs(os.path.dirname(target_startup_path), exist_ok=True)
+            with open(target_startup_path, "wb") as f:
                 f.write(user_file.content)
         else:
             return jsonify({"success": False, "message": "الملف غير موجود"})
     
-    # تجهيز متغيرات البيئة
-    meta_path = ensure_meta(folder)
-    with open(meta_path, "r") as f:
-        meta = json.load(f)
+    # Sync all files for this server to FS before starting
+    files = UserFile.query.filter_by(
+        username=session['username'],
+        server_folder=folder
+    ).all()
+    for f in files:
+        f_path = os.path.join(user_servers_dir, folder, f.filename)
+        os.makedirs(os.path.dirname(f_path), exist_ok=True)
+        if not os.path.exists(f_path):
+            with open(f_path, "wb") as f_out:
+                f_out.write(f.content)
     
+    # تجهيز متغيرات البيئة
     env_vars = os.environ.copy()
     env_vars.update(meta.get("env", {}))
     env_vars["PYTHONUNBUFFERED"] = "1"
     
-    # استخدام PIPE وموضوع (Thread) لنقل المخرجات للملف مع Flush فوري
     try:
         # Check if the startup file is an HTML file or a script
         if startup.endswith(".html"):
-            # If it's HTML, we can't "run" it with python, 
-            # but we can log that it's being served.
             with open(log_path, "w", encoding="utf-8") as f:
                 f.write(f"Serving HTML file: {startup}\n")
                 f.write(f"Server is 'Running' and accessible via web interface.\n")
-            
-            # Create a dummy process that sleeps to represent the "running" state
             proc = subprocess.Popen(["sleep", "infinity"])
         else:
             proc = subprocess.Popen(
@@ -595,7 +612,7 @@ def server_action(folder, act):
                         for line in p.stdout:
                             f.write(line)
                             f.flush()
-                            os.fsync(f.fileno()) # Force write to disk
+                            os.fsync(f.fileno())
                 except Exception as e:
                     print(f"Logging error: {e}")
             
