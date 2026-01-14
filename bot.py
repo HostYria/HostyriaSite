@@ -231,6 +231,11 @@ def ensure_meta(folder):
     return meta_path
 
 def get_ip():
+    # Detect Render environment
+    render_host = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+    if render_host:
+        return render_host
+
     # Use Replit domain if available
     repl_slug = os.environ.get("REPL_SLUG")
     repl_owner = os.environ.get("REPL_OWNER")
