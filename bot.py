@@ -251,24 +251,48 @@ def get_ip():
     except: 
         return 'http://127.0.0.1'
 
-def load_servers_list():
-    if 'username' not in session:
+def load_servers_list(username=None):
+    current_user = username or session.get('username')
+    if not current_user:
         return []
     
-    user_servers_dir = ensure_user_servers_dir()
-    if not user_servers_dir or not os.path.exists(user_servers_dir):
-        return []
+    # Prioritize database records
+    db_servers = db.session.query(UserFile.server_folder).filter_by(
+        username=current_user
+    ).distinct().all()
     
+    # Get physical folders too
+    user_servers_dir = os.path.join(USERS_DIR, current_user, "SERVERS")
+    os.makedirs(user_servers_dir, exist_ok=True)
+    
+    fs_entries = []
     try:
-        entries = [d for d in os.listdir(user_servers_dir) 
-                  if os.path.isdir(os.path.join(user_servers_dir, d))]
+        fs_entries = [d for d in os.listdir(user_servers_dir) 
+                     if os.path.isdir(os.path.join(user_servers_dir, d))]
     except: 
-        entries = []
+        pass
+    
+    # Combine both sources
+    all_folders = list(set([s[0] for s in db_servers] + fs_entries))
     
     servers = []
-    for i, folder in enumerate(entries, start=1):
-        ensure_meta(folder)
+    for i, folder in enumerate(all_folders, start=1):
+        # Sync meta.json from DB to FS if it exists
+        meta_db = UserFile.query.filter_by(
+            username=current_user,
+            server_folder=folder,
+            filename="meta.json"
+        ).first()
+        
         meta_path = os.path.join(user_servers_dir, folder, "meta.json")
+        os.makedirs(os.path.join(user_servers_dir, folder), exist_ok=True)
+        
+        if meta_db:
+            with open(meta_path, "wb") as f:
+                f.write(meta_db.content)
+        
+        ensure_meta_explicit(current_user, folder)
+        
         display_name, startup_file = folder, ""
         try:
             with open(meta_path, "r", encoding="utf-8") as f:
@@ -277,6 +301,7 @@ def load_servers_list():
                 startup_file = meta.get("startup_file", "")
         except: 
             pass
+            
         servers.append({
             "id": i, 
             "title": display_name, 
@@ -285,6 +310,82 @@ def load_servers_list():
             "startup_file": startup_file
         })
     return servers
+
+def ensure_meta_explicit(username, folder):
+    user_servers_dir = os.path.join(USERS_DIR, username, "SERVERS")
+    meta_path = os.path.join(user_servers_dir, folder, "meta.json")
+    if not os.path.exists(meta_path):
+        os.makedirs(os.path.join(user_servers_dir, folder), exist_ok=True)
+        with open(meta_path, "w", encoding="utf-8") as f:
+            json.dump({"display_name": folder, "startup_file": ""}, f)
+        # Save to DB
+        with open(meta_path, "rb") as f:
+            save_file_to_db_and_fs(username, folder, "meta.json", f.read())
+    return meta_path
+
+def auto_start_all_servers():
+    with app.app_context():
+        users = User.query.all()
+        for user in users:
+            servers = load_servers_list(user.username)
+            for server in servers:
+                folder = server['folder']
+                startup = server['startup_file']
+                if not startup:
+                    continue
+                
+                # Mimic server_action logic without request context
+                proc_key = f"{user.username}_{folder}"
+                if proc_key in running_procs:
+                    continue
+                
+                user_servers_dir = os.path.join(USERS_DIR, user.username, "SERVERS")
+                log_path = os.path.join(user_servers_dir, folder, "server.log")
+                os.makedirs(os.path.dirname(log_path), exist_ok=True)
+                
+                # Sync files
+                files = UserFile.query.filter_by(username=user.username, server_folder=folder).all()
+                for f in files:
+                    f_path = os.path.join(user_servers_dir, folder, f.filename)
+                    os.makedirs(os.path.dirname(f_path), exist_ok=True)
+                    with open(f_path, "wb") as f_out:
+                        f_out.write(f.content)
+                
+                meta_path = os.path.join(user_servers_dir, folder, "meta.json")
+                with open(meta_path, "r") as f:
+                    meta = json.load(f)
+                
+                env_vars = os.environ.copy()
+                env_vars.update(meta.get("env", {}))
+                env_vars["PYTHONUNBUFFERED"] = "1"
+                
+                try:
+                    if startup.endswith(".html"):
+                        with open(log_path, "w", encoding="utf-8") as f:
+                            f.write(f"Serving HTML file: {startup}\n")
+                        proc = subprocess.Popen(["sleep", "infinity"])
+                    else:
+                        proc = subprocess.Popen(
+                            [sys.executable, "-u", startup], 
+                            cwd=os.path.join(user_servers_dir, folder), 
+                            stdout=subprocess.PIPE, 
+                            stderr=subprocess.STDOUT,
+                            env=env_vars,
+                            universal_newlines=True,
+                            bufsize=1
+                        )
+                        def pipe_to_file(p, path):
+                            try:
+                                with open(path, "w", encoding="utf-8", buffering=1) as f:
+                                    for line in p.stdout:
+                                        f.write(line)
+                                        f.flush()
+                            except: pass
+                        threading.Thread(target=pipe_to_file, args=(proc, log_path), daemon=True).start()
+                    running_procs[proc_key] = proc
+                    print(f"Auto-started server: {proc_key}")
+                except Exception as e:
+                    print(f"Failed to auto-start {proc_key}: {e}")
 
 # ============== Routes ==============
 
