@@ -231,6 +231,12 @@ def ensure_meta(folder):
     return meta_path
 
 def get_ip():
+    # Use Replit domain if available
+    repl_slug = os.environ.get("REPL_SLUG")
+    repl_owner = os.environ.get("REPL_OWNER")
+    if repl_slug and repl_owner:
+        return f"{repl_slug}.{repl_owner}.repl.co"
+    
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(('10.255.255.255', 1))
