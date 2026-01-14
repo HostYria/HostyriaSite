@@ -230,6 +230,29 @@ def ensure_meta(folder):
             json.dump({"display_name": folder, "startup_file": ""}, f)
     return meta_path
 
+@app.route("/<username>/<folder>/")
+@app.route("/<username>/<folder>/<path:filename>")
+def serve_user_server_files(username, folder, filename=None):
+    # This route will serve files for a specific user server
+    user_servers_dir = os.path.join(USERS_DIR, username, "SERVERS")
+    server_path = os.path.join(user_servers_dir, folder)
+    
+    if not os.path.exists(server_path):
+        return "Server not found", 404
+        
+    if not filename:
+        # Try to find startup file from meta.json
+        meta_path = os.path.join(server_path, "meta.json")
+        startup_file = "index.html" # Default
+        if os.path.exists(meta_path):
+            try:
+                with open(meta_path, "r") as f:
+                    startup_file = json.load(f).get("startup_file") or "index.html"
+            except: pass
+        filename = startup_file
+
+    return send_from_directory(server_path, filename)
+
 def get_ip():
     # Force primary domain as requested
     return "https://hostyriasite.onrender.com"
@@ -373,7 +396,7 @@ def auto_start_all_servers():
                 base_url = get_ip()
                 if not base_url.endswith("/"):
                     base_url += "/"
-                server_url = f"{base_url}USERS/{user.username}/SERVERS/{folder}/"
+                server_url = f"{base_url}{user.username}/{folder}/"
                 
                 meta_path = os.path.join(user_servers_dir, folder, "meta.json")
                 with open(meta_path, "r") as f:
@@ -699,10 +722,9 @@ def server_action(folder, act):
     
     # Construct distinct server URL based on the folder/server context
     base_url = get_ip()
-    # Ensure URL ends with a slash for consistency
     if not base_url.endswith("/"):
         base_url += "/"
-    server_url = f"{base_url}USERS/{session['username']}/SERVERS/{folder}/"
+    server_url = f"{base_url}{session['username']}/{folder}/"
     
     # Sync all files for this server to FS before starting
     files = UserFile.query.filter_by(
