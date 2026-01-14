@@ -371,7 +371,9 @@ def auto_start_all_servers():
                 
                 # Construct distinct server URL
                 base_url = get_ip()
-                server_url = f"{base_url}/USERS/{user.username}/SERVERS/{folder}/"
+                if not base_url.endswith("/"):
+                    base_url += "/"
+                server_url = f"{base_url}USERS/{user.username}/SERVERS/{folder}/"
                 
                 meta_path = os.path.join(user_servers_dir, folder, "meta.json")
                 with open(meta_path, "r") as f:
@@ -697,7 +699,10 @@ def server_action(folder, act):
     
     # Construct distinct server URL based on the folder/server context
     base_url = get_ip()
-    server_url = f"{base_url}/USERS/{session['username']}/SERVERS/{folder}/"
+    # Ensure URL ends with a slash for consistency
+    if not base_url.endswith("/"):
+        base_url += "/"
+    server_url = f"{base_url}USERS/{session['username']}/SERVERS/{folder}/"
     
     # Sync all files for this server to FS before starting
     files = UserFile.query.filter_by(
